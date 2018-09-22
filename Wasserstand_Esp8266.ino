@@ -105,9 +105,9 @@ void setup() {
   //Initialize File System
   SPIFFS.begin();
 
-  config._ssid="Perry";
-  config._password="5785340536886787";
-  config.save();
+  //config._ssid="";
+  //config._password="";
+  //config.save();
   
   //lese SPIFFS config file system
   config.init(myWifi);
