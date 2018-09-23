@@ -19,7 +19,7 @@ int dst = 0;
 //Ringspeicher, Groesse in Log.h definiert
 LOG logs;
 
-const int FW_VERSION = 28;
+const int FW_VERSION = 31;
 
 const char* update_path = "/update";
 const char* update_username = "admin";
@@ -353,20 +353,16 @@ void toggleDebug(unsigned char* payload) {
 
   //TRUE
   if(payload[1] == 'd') {
-    if(payload[4] == 't') {
-      if(payload[2]=='1') {
+    if(payload[2] == 't') {
         msg = "Switched debug to true";
         debug = true;
-        mySerial.print("d1"); //Arduino kennt nur debug bzw. debug1
-      } 
-      logs.setDebug(true);
+        mySerial.print("d1"); 
+        logs.setDebug(true);
     } else { //FALSE
-      if(payload[2]=='1') {
         msg = "Switched debug to false";
         debug = false;
         mySerial.print("d0"); //Arduino kennt nur debug bzw. debug1
-      } 
-      logs.setDebug(false);
+        logs.setDebug(false);
     }  
   } else if(payload[1] == 'l') {
     String pl = String((char*)payload);

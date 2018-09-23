@@ -131,7 +131,12 @@ function log(msg) {
 console.log('Trying to open Webclient socket');
 log('Trying to open Webclient socket');
 
-connection.onopen = function () { connection.send('Connect ' + new Date()); };
+connection.onopen = function () { 
+  connection.send('Connect ' + new Date()); 
+  if(null != json) {
+     updateUiFromData();
+  }
+};
 
 var errCount = 0;
 connection.onerror = function (error) { 
@@ -146,6 +151,7 @@ connection.onerror = function (error) {
 };
 
 //vom Server empfangen
+var json = null;
 var server = '';
 var data = '';
 connection.onmessage = function (e) { 
@@ -161,7 +167,38 @@ connection.onmessage = function (e) {
       if(debug) {      
         log(data);
       }
-      var json = JSON.parse(data); 
+      json = JSON.parse(data); 
+      updateUiFromData();          
+    } else {
+       log(data);      
+    }
+  }
+};
+console.log('End trying to open Webclient socket');
+log('End trying to open webclient socket');
+
+//Keine State-Information hier, die Bestätigung kommt mit Websocket-Datagramm
+function togglePumpe(txt) {
+    if(txt == 'AN') {
+      connection.send("@+"); //Pumpenstrom einschalten
+    } else {
+      connection.send("@-"); //Pumpenstrom abschalten
+    }
+}
+
+function toggleDebug() {
+    var debug=document.getElementById("dbg").checked;
+    connection.send("@d"+debug);
+    console.log("toggleDebug(), Debug value: " + debug + "; Send: @d"+debug);
+}
+
+function setLevel() {
+    var level = document.getElementById("level").value;
+    connection.send("@l"+level);
+    console.log("setLevel(), Level value: " + level + "; Send: @l" + level);
+}
+
+function updateUiFromData() {
       var pegel = json.p;
       document.getElementById('pegel').innerHTML='<b class=white>' + pegel + '</b> cm';
       setPegel(pegel, json.v);       
@@ -189,35 +226,10 @@ connection.onmessage = function (e) {
           msgDiv.innerHTML=msg.substring(2);
         } else {
           log(msg);
-        }      
+        }       
       } else {
         msgDiv.style.visibility='hidden';
-      }      
-    } else {
-       log(data);      
-    }
-  }
-};
-console.log('End trying to open Webclient socket');
-log('End trying to open webclient socket');
-
-//Keine State-Information hier, die Bestätigung kommt mit Websocket-Datagramm
-function togglePumpe(txt) {
-    if(txt == 'AN') {
-      connection.send("@+"); //Pumpenstrom einschalten
-    } else {
-      connection.send("@-"); //Pumpenstrom abschalten
-    }
-}
-
-function toggleDebug() {
-    debug=document.getElementById("dbg").checked;
-    connection.send("@d"+debug);
-}
-
-function setLevel() {
-    var level = document.getElementById("level").value;
-    connection.send("@l"+level);
+      } 
 }
 
 //anfangs sollte Debug nicht selektiert sein
