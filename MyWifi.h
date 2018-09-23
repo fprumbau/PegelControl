@@ -7,8 +7,8 @@ class MyWifi {
     private:
       String _ip;
     public:
-      char* _ssid = "";
-      char* _password = "";
+      const char* _ssid = "";
+      const char* _password = "";
       void connect();
       String getIpAddress();
 };
