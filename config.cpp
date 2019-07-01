@@ -7,16 +7,15 @@ void CFG::init(MyWifi& myWifi) {
     } else  {
       Serial.println("Config loaded");
       myWifi._ssid = _ssid;
-      myWifi._password = _password;
       Serial.print("Wifi SSID from config: ");
       Serial.println(myWifi._ssid);
     }
 
-    /*if(!save()) {
+    if(!save()) {
       Serial.println("Failed to save config");
     } else  {
       Serial.println("Config saved");
-    }*/
+    }
 }
 
 bool CFG::load() {
@@ -47,17 +46,16 @@ bool CFG::load() {
   Serial.println(buf.get());
   
 
-  StaticJsonDocument<1024> doc;
-  //JsonObject& json = jsonBuffer.parseObject(buf.get());
-  auto error = deserializeJson(doc, buf.get());
+  StaticJsonBuffer<1024> jsonBuffer;
+  JsonObject& json = jsonBuffer.parseObject(buf.get());
 
-  if(error) {
+  if(!json.success()) {
     Serial.println("Failed to parse config file");
     return false;
   }
 
-  _ssid = doc["ssid"];
-  _password = doc["password"];
+  _ssid = json["ssid"];
+  _password = json["password"];
   
   Serial.print("SSID from config: ");
   Serial.println(_ssid);
@@ -73,9 +71,10 @@ bool CFG::save() {
     return false;
   }
 
-  StaticJsonDocument<1024> doc;
+  StaticJsonBuffer<1024> jsonBuffer;
+  JsonObject& json = jsonBuffer.createObject();
   
-  //doc["socLimit"] = String(_socLimit);
+  //json["socLimit"] = String(_socLimit);
 
   File configFile = SPIFFS.open("/config.json", "w");
   if (!configFile) {
@@ -83,7 +82,12 @@ bool CFG::save() {
     return false;
   }
 
-  //json.printTo(configFile);
-  serializeJson(doc, configFile);
+  json.printTo(configFile);
   return true;
 }
+
+
+
+
+
+

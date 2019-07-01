@@ -35,12 +35,10 @@ String LOG::load() {
   }
  
 
-  DynamicJsonDocument doc(BUFFSIZE);
-  //JsonArray& array = doc.parseArray(buf.get()); //ArduinoJson 5
-  auto error = deserializeJson(doc, buf.get());
-  JsonArray array = doc.to<JsonArray>();
+  DynamicJsonBuffer jsonBuffer(BUFFSIZE);
+  JsonArray& array = jsonBuffer.parseArray(buf.get());
 
-  if(error) {
+  if(!array.success()) {
     msg+="Failed to parse config file\n";
     return msg;
   }
@@ -70,9 +68,8 @@ String LOG::save() {
     return msg;
   }
   //80 Strings a 100 Zeichen sind 8kB
-  DynamicJsonDocument doc(BUFFSIZE);;
-  //JsonArray& array = doc.createArray(); ArduinoJson 5
-  JsonArray array = doc.to<JsonArray>();
+  DynamicJsonBuffer jsonBuffer(BUFFSIZE);;
+  JsonArray& array = jsonBuffer.createArray();
 
   int maxEvents = len(logEvents);
   for(int i = oldest; i < maxEvents; i++) {
@@ -94,8 +91,7 @@ String LOG::save() {
     return msg;
   }
 
-  //array.printTo(logFile);
-  serializeJson(array, logFile);
+  array.printTo(logFile);
 
   Serial.println(msg);
   return msg;
@@ -179,3 +175,5 @@ String LOG::get(int index) {
 void LOG::setDebug(bool d) {
   debug = d;
 }
+
+
