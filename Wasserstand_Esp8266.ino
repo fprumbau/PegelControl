@@ -11,6 +11,13 @@
 #include "Log.h"
 #include "config.h"
 
+/**
+ * Changelog:
+ * 
+ * FW_VERSION 33: ArduionoJson 6, Esp8266 v.2.5
+ * 
+ */
+
 #define IFSET(var,pos) (((var)>>(pos)) & 1)
 
 int timezone = 2;
@@ -19,7 +26,7 @@ int dst = 0;
 //Ringspeicher, Groesse in Log.h definiert
 LOG logs;
 
-const int FW_VERSION = 31;
+const int FW_VERSION = 33;
 
 const char* update_path = "/update";
 const char* update_username = "admin";
@@ -157,21 +164,22 @@ void loop() {
   server.handleClient(); 
   yield();
   if(mySerial.available()) {
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject& root = jsonBuffer.parseObject(mySerial);
+    DynamicJsonDocument doc(1024);
+    //JsonObject& root = jsonBuffer.parseObject(mySerial);
     if(debug) {
-      root.prettyPrintTo(Serial);
+      //root.prettyPrintTo(Serial);
+      serializeJsonPretty(doc, Serial);
     }
     //
     bool wichtig = false;
-    String msg = root["m"];
+    String msg = doc["m"];
     if(msg.startsWith("*")) {
             
       //Abspeichern, wichtige Statusnachricht
       time_t now = time(nullptr);
       String localTime = String(ctime(&now));
       msg = "<b class=date>" + localTime + "</b>&nbsp;&nbsp;" + msg.substring(1);
-      root["m"]=msg;
+      doc["m"]=msg;
       
       logs.append(msg);
       logs.print();
@@ -182,12 +190,13 @@ void loop() {
       }
       wichtig = true;
     } 
-    root["level"]=level;
+    doc["level"]=level;
     //da 2 SoftwareSerials benoetigt werden, kann NICHT ueber 2 gleichzeitig gelesen
     //werden, darum wird der Debug-Wert aus dem ESP zum Client uebermittelt
-    root["d"]=debug;
+    doc["d"]=debug;
     char jsonChar[512];
-    root.printTo(jsonChar);
+    //root.printTo(jsonChar);
+    serializeJson(doc, jsonChar);
     sendClients(jsonChar, wichtig);
   }
 }
@@ -205,12 +214,13 @@ void webpage() {
   long s1 = sizeof(part1);
   long s2 = sizeof(part2);
 
-  String connStr = "var connection = new WebSocket('ws://";
+  /*String connStr = "var connection = new WebSocket('ws://";
   connStr+=myWifi.getIpAddress();
   connStr+=":81/', ['arduino']);";
-  int s3 = connStr.length();
+  int s3 = connStr.length();  
+  long totalSize = s1 + s2 + s3;*/
+  long totalSize = s1 + s2;
   
-  long totalSize = s1 + s2 + s3;
   if(debug) {
     Serial.print("\np1: ");
     Serial.println(s1);
@@ -222,7 +232,7 @@ void webpage() {
   }
   server.setContentLength(totalSize);
   server.send_P(200, "text/html", part1);
-  server.sendContent(connStr);
+  //server.sendContent(connStr);
   server.sendContent_P(part2);
 }
 
