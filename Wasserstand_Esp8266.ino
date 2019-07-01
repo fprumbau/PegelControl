@@ -26,7 +26,7 @@ int dst = 0;
 //Ringspeicher, Groesse in Log.h definiert
 LOG logs;
 
-const int FW_VERSION = 34;
+const int FW_VERSION = 35;
 
 const char* update_path = "/update";
 const char* update_username = "admin";
