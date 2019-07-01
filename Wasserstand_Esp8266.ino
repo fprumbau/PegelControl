@@ -19,6 +19,8 @@ int dst = 0;
 //Ringspeicher, Groesse in Log.h definiert
 LOG logs;
 
+const int FW_VERSION = 31;
+
 const char* update_path = "/update";
 const char* update_username = "admin";
 const char* update_password = "admin";
@@ -42,15 +44,13 @@ bool debug = false;
 int level = 0;
 
 //weil der esp8266 nur ein UART fuer RX/TX hat, das zweite hat nur TX
-SoftwareSerial mySerial(5, 4); //Rx,Tx auf Pins 5 + 4 ( D1 + D2  )
+//SoftwareSerial mySerial(13, 15, false, 256); //Rx,Tx auf Pins 13 + 15 ( D7 + D8 )
+SoftwareSerial mySerial(5, 4, false, 256); //Rx,Tx auf Pins 5 + 4 ( D1 + D2  )
 
 //D7(13)[RX] -> Arduino D11[TX]
 //D8(15)[TX] -> Arduino D10[RX]
 
 unsigned long wsServerLastSend = -1;
-
-//Anzeige Wasserstand/Pegel in Jsonseite
-char jsonChar[512];
 
 /*
  * Schreibt die Webseite in Teilen (<6kb)
@@ -123,13 +123,12 @@ void setup() {
   server.on("/",handleRoot);
   server.onNotFound(handleWebRequests);
   server.on("/pegel", webpage);
-  server.on("/data", sendJson);
 
   Serial.print("\nStarting firmware version... ");
-  Serial.println(VERSION);
+  Serial.println(FW_VERSION);
 
   // initialize other the air updates
-  ota.init(server, host, update_path, update_username, update_password, VERSION);
+  ota.init(server, host, update_path, update_username, update_password, FW_VERSION);
   
   server.begin();
 
@@ -158,23 +157,21 @@ void loop() {
   server.handleClient(); 
   yield();
   if(mySerial.available()) {
-    DynamicJsonDocument doc(1024);
-    //JsonObject& root = jsonBuffer.parseObject(mySerial);
-    deserializeJson(doc, mySerial);
+    DynamicJsonBuffer jsonBuffer;
+    JsonObject& root = jsonBuffer.parseObject(mySerial);
     if(debug) {
-      //root.prettyPrintTo(Serial);
-      serializeJsonPretty(doc, Serial);
+      root.prettyPrintTo(Serial);
     }
-    
+    //
     bool wichtig = false;
-    String msg = doc["m"];
+    String msg = root["m"];
     if(msg.startsWith("*")) {
             
       //Abspeichern, wichtige Statusnachricht
       time_t now = time(nullptr);
       String localTime = String(ctime(&now));
       msg = "<b class=date>" + localTime + "</b>&nbsp;&nbsp;" + msg.substring(1);
-      doc["m"]=msg;
+      root["m"]=msg;
       
       logs.append(msg);
       logs.print();
@@ -185,26 +182,14 @@ void loop() {
       }
       wichtig = true;
     } 
-    doc["level"]=level;
+    root["level"]=level;
     //da 2 SoftwareSerials benoetigt werden, kann NICHT ueber 2 gleichzeitig gelesen
     //werden, darum wird der Debug-Wert aus dem ESP zum Client uebermittelt
-    doc["d"]=debug;
-    
-    //root.printTo(jsonChar);
-    serializeJson(doc, jsonChar);
-    
+    root["d"]=debug;
+    char jsonChar[512];
+    root.printTo(jsonChar);
     sendClients(jsonChar, wichtig);
   }
-}
-
-void sendJson() { 
-  String json = String(jsonChar);
-  if(debug) {
-    Serial.print("JsonDATA:");
-    Serial.println(json);
-  }
-  server.setContentLength(json.length());
-  server.send(200, "text/html", json);
 }
 
 /*
@@ -220,13 +205,12 @@ void webpage() {
   long s1 = sizeof(part1);
   long s2 = sizeof(part2);
 
-  /*String connStr = "var connection = new WebSocket('ws://";
+  String connStr = "var connection = new WebSocket('ws://";
   connStr+=myWifi.getIpAddress();
   connStr+=":81/', ['arduino']);";
-  int s3 = connStr.length();  
-  long totalSize = s1 + s2 + s3;*/
-  long totalSize = s1 + s2;
+  int s3 = connStr.length();
   
+  long totalSize = s1 + s2 + s3;
   if(debug) {
     Serial.print("\np1: ");
     Serial.println(s1);
@@ -238,7 +222,7 @@ void webpage() {
   }
   server.setContentLength(totalSize);
   server.send_P(200, "text/html", part1);
-  //server.sendContent(connStr);
+  server.sendContent(connStr);
   server.sendContent_P(part2);
 }
 
@@ -403,17 +387,21 @@ void toggleDebug(unsigned char* payload) {
 }
 
 bool loadFromSpiffs(String path){
-
-  if(debug) {
-    String loading0 = "Loading ";
-    loading0+=path.c_str();
-    sendClients(loading0, true);
-  }
-  
   String dataType = "text/plain";
   if(path.endsWith("/")) path += "pegel";
  
   if(path.endsWith(".src")) path = path.substring(0, path.lastIndexOf("."));
+  else if(path.endsWith(".html")) dataType = "text/html";
+  else if(path.endsWith(".htm")) dataType = "text/html";
+  else if(path.endsWith(".css")) dataType = "text/css";
+  else if(path.endsWith(".js")) dataType = "application/javascript";
+  else if(path.endsWith(".png")) dataType = "image/png";
+  else if(path.endsWith(".gif")) dataType = "image/gif";
+  else if(path.endsWith(".jpg")) dataType = "image/jpeg";
+  else if(path.endsWith(".ico")) dataType = "image/x-icon";
+  else if(path.endsWith(".xml")) dataType = "text/xml";
+  else if(path.endsWith(".pdf")) dataType = "application/pdf";
+  else if(path.endsWith(".zip")) dataType = "application/zip";
   else if(path.endsWith(".svg")) dataType = "image/svg+xml";
 
   if(path.startsWith("/pegel")) {
@@ -426,12 +414,8 @@ bool loadFromSpiffs(String path){
   }
   
   File dataFile = SPIFFS.open(path.c_str(), "r");
-  if (server.hasArg("download")){ 
-    //Serial.println("download");
-    dataType = "application/octet-stream"; 
-  }
+  if (server.hasArg("download")) dataType = "application/octet-stream";
   if (server.streamFile(dataFile, dataType) != dataFile.size()) {
-    //Serial.println("Fehler!");
   }
  
   dataFile.close();
