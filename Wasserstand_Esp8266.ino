@@ -51,7 +51,7 @@ bool debug = false;
 int level = 0;
 
 //weil der esp8266 nur ein UART fuer RX/TX hat, das zweite hat nur TX
-SoftwareSerial mySerial(5, 4); //Rx,Tx auf Pins 5 + 4 ( D1 + D2  )
+SoftwareSerial mySerial(5, 4, false, 256);  //Rx,Tx auf Pins 5 + 4 ( D1 + D2  )
 
 //D7(13)[RX] -> Arduino D11[TX]
 //D8(15)[TX] -> Arduino D10[RX]
@@ -197,7 +197,6 @@ void loop() {
     //da 2 SoftwareSerials benoetigt werden, kann NICHT ueber 2 gleichzeitig gelesen
     //werden, darum wird der Debug-Wert aus dem ESP zum Client uebermittelt
     doc["d"]=debug;
-    char jsonChar[512];
     serializeJson(doc, jsonChar);
     sendClients(jsonChar, wichtig);
   }
