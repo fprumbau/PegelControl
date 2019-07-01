@@ -195,7 +195,7 @@ void loop() {
     } 
     doc["level"]=level;
     //da 2 SoftwareSerials benoetigt werden, kann NICHT ueber 2 gleichzeitig gelesen
-    //werden, darum wird der Debug-Wert aus dem ESP zum Client uebermittelt
+    //werden, darum wird der Debug-Wert aus dem ESP zum Client uebermittelt...
     doc["d"]=debug;
     serializeJson(doc, jsonChar);
     sendClients(jsonChar, wichtig);
