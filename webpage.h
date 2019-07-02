@@ -91,11 +91,9 @@ const char part1[] PROGMEM = R"=====(
 </div>
 <script id='smain2'>
 
-//Reconnecting-websocket
-<<<<<<< HEAD
+var ip = location.host;
 /*
-=======
->>>>>>> ee709415eba8c59bb85dcb2a2bd0441f2e210058
+//Reconnecting-websocket
 !function(a,b){"function"==typeof define&&define.amd?define([],b):"undefined"!=typeof module&&module.exports?module.exports=b():a.ReconnectingWebSocket=b()}(this,function(){function a(b,c,d){function l(a,b){var c=document.createEvent("CustomEvent");
 return c.initCustomEvent(a,!1,!1,b),c}var e={debug:!1,automaticOpen:!0,reconnectInterval:1e3,maxReconnectInterval:3e4,reconnectDecay:1.5,timeoutInterval:2e3};d||(d={});for(var f in e)this[f]="undefined"!=typeof d[f]?d[f]:e[f];
 this.url=b,this.reconnectAttempts=0,this.readyState=WebSocket.CONNECTING,this.protocol=null;var h,g=this,i=!1,j=!1,k=document.createElement("div");k.addEventListener("open",function(a){g.onopen(a)}),k.addEventListener("close",function(a){g.onclose(a)}),
@@ -110,15 +108,9 @@ return(g.debug||a.debugAll)&&console.debug("ReconnectingWebSocket","send",g.url,
 return a.prototype.onopen=function(){},a.prototype.onclose=function(){},a.prototype.onconnecting=function(){},a.prototype.onmessage=function(){},
 a.prototype.onerror=function(){},a.debugAll=!1,a.CONNECTING=WebSocket.CONNECTING,a.OPEN=WebSocket.OPEN,a.CLOSING=WebSocket.CLOSING,a.CLOSED=WebSocket.CLOSED,a});
 
-var ip = location.host;
 var connection = new ReconnectingWebSocket('ws://' + ip + ':81/', null, { debug:true, reconnectInterval: 6000, reconnectDecay: 1.1, maxReconnectInterval: 10000 });
-<<<<<<< HEAD
 */
-var connection = new WebSocket('ws://192.168.178.24:81/',['arduino']); 
-=======
-
->>>>>>> ee709415eba8c59bb85dcb2a2bd0441f2e210058
-)=====";
+var connection = new WebSocket('ws://'+ ip +':81/',['arduino']); 
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 const char part2[] PROGMEM = R"=====(

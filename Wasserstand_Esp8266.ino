@@ -167,7 +167,7 @@ void loop() {
   server.handleClient(); 
   yield();
   if(mySerial.available()) {
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(512);
     deserializeJson(doc, mySerial);
     if(debug) {
       //root.prettyPrintTo(Serial);
@@ -198,7 +198,10 @@ void loop() {
     //werden, darum wird der Debug-Wert aus dem ESP zum Client uebermittelt...
     doc["d"]=debug;
     serializeJson(doc, jsonChar);
-    sendClients(jsonChar, wichtig);
+    if(debug) {
+        Serial.println(String(jsonChar));
+    }
+    sendClients(String(jsonChar), wichtig);
   }
 }
 
