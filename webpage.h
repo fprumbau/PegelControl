@@ -111,6 +111,7 @@ a.prototype.onerror=function(){},a.debugAll=!1,a.CONNECTING=WebSocket.CONNECTING
 var connection = new ReconnectingWebSocket('ws://' + ip + ':81/', null, { debug:true, reconnectInterval: 6000, reconnectDecay: 1.1, maxReconnectInterval: 10000 });
 */
 var connection = new WebSocket('ws://'+ ip +':81/',['arduino']); 
+)=====";
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 const char part2[] PROGMEM = R"=====(

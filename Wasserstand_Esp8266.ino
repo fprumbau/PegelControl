@@ -199,9 +199,9 @@ void loop() {
     doc["d"]=debug;
     serializeJson(doc, jsonChar);
     if(debug) {
-        Serial.println(String(jsonChar));
+        Serial.println(jsonChar);
     }
-    sendClients(String(jsonChar), wichtig);
+    sendClients(jsonChar, wichtig);
   }
 }
 
