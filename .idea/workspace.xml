@@ -9,9 +9,7 @@
     </configurations>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3af20d34-e62c-41b2-8dab-9ca66765792e" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/Wasserstand_Esp8266.ino" beforeDir="false" afterPath="$PROJECT_DIR$/Wasserstand_Esp8266.ino" afterDir="false" />
-    </list>
+    <list default="true" id="3af20d34-e62c-41b2-8dab-9ca66765792e" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,7 +25,7 @@
         <entry file="file://$PROJECT_DIR$/Wasserstand_Esp8266.ino">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="611">
-              <caret line="322" lean-forward="true" selection-start-line="322" selection-end-line="322" />
+              <caret line="322" selection-start-line="322" selection-end-line="322" />
             </state>
           </provider>
         </entry>
@@ -35,8 +33,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/webpage.h">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="495">
-              <caret line="163" column="1" lean-forward="true" selection-start-line="163" selection-start-column="1" selection-end-line="163" selection-end-column="1" />
+            <state relative-caret-position="210">
+              <caret line="136" column="33" lean-forward="true" selection-start-line="136" selection-start-column="33" selection-end-line="136" selection-end-column="33" />
             </state>
           </provider>
         </entry>
@@ -156,14 +154,14 @@
     <entry file="file://$PROJECT_DIR$/Wasserstand_Esp8266.ino">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="611">
-          <caret line="322" lean-forward="true" selection-start-line="322" selection-end-line="322" />
+          <caret line="322" selection-start-line="322" selection-end-line="322" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/webpage.h">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="495">
-          <caret line="163" column="1" lean-forward="true" selection-start-line="163" selection-start-column="1" selection-end-line="163" selection-end-column="1" />
+        <state relative-caret-position="210">
+          <caret line="136" column="33" lean-forward="true" selection-start-line="136" selection-start-column="33" selection-end-line="136" selection-end-column="33" />
         </state>
       </provider>
     </entry>

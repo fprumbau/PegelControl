@@ -10,6 +10,7 @@
 #include "OTA.h"
 #include "Log.h"
 #include "config.h"
+#include "FritzBox.h"
 
 /**
  * Changelog:
@@ -199,9 +200,9 @@ void loop() {
     doc["d"]=debug;
     serializeJson(doc, jsonChar);
     if(debug) {
-        Serial.println(jsonChar);
+        Serial.println(String(jsonChar));
     }
-    sendClients(jsonChar, wichtig);
+    sendClients(String(jsonChar), wichtig);
   }
 }
 
