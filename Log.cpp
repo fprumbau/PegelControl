@@ -1,5 +1,7 @@
 #include "Log.h"
 
+#include "global.h"
+
 #define len(x) sizeof(x)/sizeof(x[0])
 
 String LOG::load() {

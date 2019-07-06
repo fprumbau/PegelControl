@@ -1,15 +1,19 @@
 #include "config.h"
 #include "MyWifi.h"
 
+#include "global.h"
+
 void CFG::init(MyWifi& myWifi) {
     if(!load()) {
       Serial.println("Failed to load config");
     } else  {
       Serial.println("Config loaded");
-      myWifi._ssid = _ssid;
+      /*myWifi._ssid = _ssid;
       myWifi._password = _password;
       Serial.print("Wifi SSID from config: ");
-      Serial.println(myWifi._ssid);
+      Serial.println(myWifi._ssid);     
+      Serial.print("Wifi Password from config: ");
+      Serial.println(myWifi._password);*/
     }
 
     /*if(!save()) {

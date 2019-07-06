@@ -1,16 +1,5 @@
-#include <ArduinoJson.h>
-#include <SoftwareSerial.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
-#include <time.h>
-#include <WebSocketsServer.h>
-#include <FS.h>  
-#include "MyWifi.h"
-#include "webpage.h"
-#include "OTA.h"
-#include "Log.h"
-#include "config.h"
-#include "FritzBox.h"
+#include "html.h"
+#include "global.h"
 
 /**
  * Changelog:
@@ -24,69 +13,25 @@
 int timezone = 2;
 int dst = 0;
 
-//Ringspeicher, Groesse in Log.h definiert
-LOG logs;
-
 const int FW_VERSION = 35;
 
 const char* update_path = "/update";
 const char* update_username = "admin";
 const char* update_password = "admin";
 
-OTA ota;
-CFG config;
-MyWifi myWifi;
-ESP8266WebServer server(80);
-WebSocketsServer wsServer = WebSocketsServer(81);
-
-const char* host = "esp8266C";
+const char* host = "pegel";
 
 //client connected to send?
 volatile bool ready = false;
 
-uint8_t clientCount=0;
-uint8_t clients[256] = {-1};
-bool notifiedNoClient = false;
-
 bool debug = false;
 int level = 0;
-
-//weil der esp8266 nur ein UART fuer RX/TX hat, das zweite hat nur TX
-SoftwareSerial mySerial(5, 4, false, 256);  //Rx,Tx auf Pins 5 + 4 ( D1 + D2  )
 
 //D7(13)[RX] -> Arduino D11[TX]
 //D8(15)[TX] -> Arduino D10[RX]
 
-unsigned long wsServerLastSend = -1;
-
 //Anzeige Wasserstand/Pegel in Jsonseite
 char jsonChar[512];
-
-/*
- * Schreibt die Webseite in Teilen (<6kb)
- * auf den Webclient, der sich gerade verbunden
- * hat. Es ist wichtig, hier die korrekte
- * Laenge des contents zu senden. Weitere Teile
- * sollten immer mit server.sendContent_P(partN)
- * versendet werden. Das _P ist hier wichtig, da
- * die Seitendefinition im PROGMEM liegen (s. webpage.h)
- */
-void webpage();
-
-
-/**
- * Sende Daten zu allen über Websockets verbundenen
- * Clients. Alles, was NICHT SBMS-Daten sind, also
- * Fehler- bzw. Statusmeldungen MUSS mit einem '@'
- * eingeleitet werden, sonst wird es von der Webseite
- * falsch interpretiert und führt zu wilden Werten
- * z.B. beim Batteriestatus.
- * 
- * wichtig: auch sehr kurz aufeinanderfolgende
- *          Nachrichten werden versendet, sonst max.
- *          alle 100ms
- */
-void sendClients(String msg, bool wichtig);
 
 /**
  * Toggle: 
@@ -98,11 +43,11 @@ void sendClients(String msg, bool wichtig);
  */
 void toggleDebug(unsigned char* payload);
 
-void handleRoot();
- 
-void handleWebRequests();
-
 String loadMsg;
+
+void sendClients(String msg) { 
+  ws.textAll(msg.c_str());
+}
 
 /**
  * Initialisierung
@@ -110,36 +55,60 @@ String loadMsg;
 void setup() {
   
   Serial.begin(115200);  //USB
-  mySerial.begin(19200); //Arduino
+  Serial2.begin(19200,SERIAL_8N1, 25, 26);
+
+  Serial.println("Starting...");
 
   //Initialize File System
   SPIFFS.begin();
-
+  
   //config._ssid="";
   //config._password="";
   //config.save();
   
-  //lese SPIFFS config file system
-  config.init(myWifi);
+  //lese SPIFFS config file system  
+  //config.init(myWifi);
 
   // etabliere Wifi Verbindung
   myWifi.connect();
 
-  // start WebsocketServer server
-  wsServer.onEvent(webSocketEvent);
-  wsServer.begin();   
-
   // start Webserver
-  server.on("/",handleRoot);
-  server.onNotFound(handleWebRequests);
-  server.on("/pegel", webpage);
-  server.on("/data", sendJson);
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->redirect("/pegel");
+  });
+
+  server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/favicon.ico", "image/x-icon");
+  });
+
+  server.on("/pegel/brunnen.svg", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/brunnen.svg", "image/svg+xml");
+  });
+
+  server.on("/pegel", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/html", html);    
+  });
+
+  server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request){
+    String json = String(jsonChar);
+    if(debug) {
+      Serial.print("JsonDATA:");
+      Serial.println(json);
+    }    
+    request->send(200, "text/html", json);    
+  });
+  
+  // start WebsocketServer server
+  ws.onEvent(onWsEvent); 
+
+  server.addHandler(&ws);
+  server.begin();
 
   Serial.print("\nStarting firmware version... ");
   Serial.println(VERSION);
 
   // initialize other the air updates
-  ota.init(server, host, update_path, update_username, update_password, VERSION);
+  updater.init(hostName);
   
   server.begin();
 
@@ -162,181 +131,64 @@ void setup() {
  * Standardloop
  */
 void loop() {
-  yield();
-  wsServer.loop();
-  yield();
-  server.handleClient(); 
-  yield();
-  if(mySerial.available()) {
-    DynamicJsonDocument doc(512);
-    deserializeJson(doc, mySerial);
-    if(debug) {
-      //root.prettyPrintTo(Serial);
-      serializeJsonPretty(doc, Serial);
-    }
-    
-    bool wichtig = false;
-    String msg = doc["m"];
-    if(msg.startsWith("*")) {
-            
-      //Abspeichern, wichtige Statusnachricht
-      time_t now = time(nullptr);
-      String localTime = String(ctime(&now));
-      msg = "<b class=date>" + localTime + "</b>&nbsp;&nbsp;" + msg.substring(1);
-      doc["m"]=msg;
-      
-      logs.append(msg);
-      logs.print();
-      
-      String saveDbgMsg = logs.save();
-      if(IFSET(level,3)) {
-        sendClients(saveDbgMsg, true);
-      }
-      wichtig = true;
-    } 
-    doc["level"]=level;
-    //da 2 SoftwareSerials benoetigt werden, kann NICHT ueber 2 gleichzeitig gelesen
-    //werden, darum wird der Debug-Wert aus dem ESP zum Client uebermittelt...
-    doc["d"]=debug;
-    serializeJson(doc, jsonChar);
-    if(debug) {
-        Serial.println(String(jsonChar));
-    }
-    sendClients(String(jsonChar), wichtig);
-  }
-}
 
-void sendJson() { 
-  String json = String(jsonChar);
-  if(debug) {
-    Serial.print("JsonDATA:");
-    Serial.println(json);
-  }
-  server.setContentLength(json.length());
-  server.send(200, "text/html", json);
-}
-
-/*
- * Schreibt die Webseite in Teilen (<6kb)
- * auf den Webclient, der sich gerade verbunden
- * hat. Es ist wichtig, hier die korrekte
- * Laenge des contents zu senden. Weitere Teile
- * sollten immer mit server.sendContent_P(partN)
- * versendet werden. Das _P ist hier wichtig, da
- * die Seitendefinition im PROGMEM liegen (s. webpage.h)
- */
-void webpage() {
-  long s1 = sizeof(part1);
-  long s2 = sizeof(part2);
-
-  /*String connStr = "var connection = new WebSocket('ws://";
-  connStr+=myWifi.getIpAddress();
-  connStr+=":81/', ['arduino']);";
-  int s3 = connStr.length();  
-  long totalSize = s1 + s2 + s3;*/
-  long totalSize = s1 + s2;
-  
-  if(debug) {
-    Serial.print("\np1: ");
-    Serial.println(s1);
-    Serial.print("p2: ");
-    Serial.println(s2);
-    Serial.print("total: ");
-    Serial.println(totalSize);
-    Serial.println("");
-  }
-  server.setContentLength(totalSize);
-  server.send_P(200, "text/html", part1);
-  //server.sendContent(connStr);
-  server.sendContent_P(part2);
-}
-
-void sendClients(String msg, bool wichtig) {
-
-  if(msg.equals("{}")){
-    return;
-  }        
-  if(IFSET(level,2)) {
-    Serial.println(msg);
-  }
-  
-  if(clientCount<=0) {
-    if(debug) {
-      Serial.println("Clientcount ist 0, sende nichts");
-    }
-    return;
-  }
-  if(debug) {
-    Serial.println("sendClients got called");
-  }
-  if(!wichtig) {
-    if(wsServerLastSend>0 && (millis()-wsServerLastSend) < 100) {
+  if(!updater.stopForOTA) {
+    commandLine();    //Pruefen, ob eine Kommandozeileneingabe vorhanden ist
+    yield();
+    if(Serial2.available()) {
+      DynamicJsonDocument doc(512);
+      deserializeJson(doc, Serial2);
       if(debug) {
-        Serial.print("Could not send data multiple times in 100ms; disgarding ");
+        serializeJsonPretty(doc, Serial);
       }
-      return;
-    }
-    wsServerLastSend = millis();
+      
+      String msg = doc["m"];
+      if(msg.startsWith("*")) {
+              
+        //Abspeichern, wichtige Statusnachricht
+        time_t now = time(nullptr);
+        String localTime = String(ctime(&now));
+        msg = "<b class=date>" + localTime + "</b>&nbsp;&nbsp;" + msg.substring(1);
+        doc["m"]=msg;
+        
+        logs.append(msg);
+        logs.print();
+        
+        String saveDbgMsg = logs.save();
+        if(IFSET(level,3)) {
+          sendClients(saveDbgMsg);
+        }
+      } 
+      doc["level"]=level;
+      //da 2 SoftwareSerials benoetigt werden, kann NICHT ueber 2 gleichzeitig gelesen
+      //werden, darum wird der Debug-Wert aus dem ESP zum Client uebermittelt...
+      doc["d"]=debug;
+      serializeJson(doc, jsonChar);
+      if(debug) {
+          Serial.println(String(jsonChar));
+      }
+      sendClients(String(jsonChar));
+    }        
   }
-  for(int m=0; m<clientCount; m++) {
-     uint8_t client = clients[m];
-     if(debug) {
-       Serial.printf("Sending client %u ( %u ) from %u clients\n", (m+1), client, clientCount);
-     }
-     wsServer.sendTXT(client, msg);
+  
+  //Restart erforderlich, wird durch updater-Objekt nach Upload einer neuen Firmware geregelt
+  if(updater.restartRequired) {
+    delay(2000);
+    ESP.restart();
   }
 }
 
 /**
- * Websocket-Events, wenn neue Clients sich verbinden, wenn die clients
- * selbst senden oder wenn sie geschlossen werden.
+ * Registriere Eventhandler für WebSocketEvents in WebCom
  */
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+    
+    switch (type) {
+    case WS_EVT_CONNECT: {       
+       
+          client->text("@ Connected");
 
-    switch(type) {
-        case WStype_DISCONNECTED: {
-            //Client 'num' aus Liste rausnehmen
-            uint8_t newClients[256];
-            for(int a=0; a<256; a++) {
-              newClients[a] = clients[a];
-            }
-            int c=0;
-            for(int x=0; x < clientCount; x++) {
-              if(num != newClients[x]) {
-                clients[c] = newClients[x];
-                c++;
-              } else {
-                clientCount--;
-              }
-            }
-            if(clientCount == 0) {
-              notifiedNoClient = false;
-              ready = false;
-            }
-            Serial.printf("[%u] Disconnected! Remaining %u\n", num, clientCount);
-            break; }
-        case WStype_CONNECTED: {
-            IPAddress ip = wsServer.remoteIP(num);
-            Serial.println("");            
-
-            // send message to client
-            wsServer.sendTXT(num, "Connected<br>");
-
-            bool alreadyListed = false;
-            int y = 0;
-            for(; y < clientCount; y++) {
-              if(num == clients[y]) {
-                alreadyListed = true;
-                break;
-              }
-            }
-            if(!alreadyListed) {
-              clients[y]=num;
-              clientCount++;
-            }
-            Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s; ConnCount: %u\n", num, ip[0], ip[1], ip[2], ip[3], payload, clientCount);
-            ready = true;
-
+/*
             //Dem neuen Client alle vorhandenen logEvents aus logs senden!!!            
             if(IFSET(level,3)) {      
                 sendClients("Loadmessage folgend: ", true);        
@@ -347,9 +199,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
                 if(msg == "") {
                   continue;          
                 }
-                wsServer.sendTXT(num, msg);
-            }    
-            break; }
+                ws.sendTXT(num, msg);
+            }  
+*/          
+                   
+          break;
+      }    
+      case WS_EVT_DATA:
+/*
         case WStype_TEXT:
             Serial.printf("[Client %u] received: %s\n", num, payload);
 
@@ -358,8 +215,11 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
                  toggleDebug(payload);
               }              
             }
-            break;
+*/
+
+      break;
     }
+  
 }
 
 /**
@@ -378,12 +238,12 @@ void toggleDebug(unsigned char* payload) {
     if(payload[2] == 't') {
         msg = "Switched debug to true";
         debug = true;
-        mySerial.print("d1"); 
+        Serial2.print("d1"); 
         logs.setDebug(true);
     } else { //FALSE
         msg = "Switched debug to false";
         debug = false;
-        mySerial.print("d0"); //Arduino kennt nur debug bzw. debug1
+        Serial2.print("d0"); //Arduino kennt nur debug bzw. debug1
         logs.setDebug(false);
     }  
   } else if(payload[1] == 'l') {
@@ -404,64 +264,48 @@ void toggleDebug(unsigned char* payload) {
     if(IFSET(level,4)) {
       msg = "Debugging level 4 activated";      
     }  
-    sendClients(msg, true);  
+    sendClients(msg);  
   }
 }
 
-bool loadFromSpiffs(String path){
-
-  if(debug) {
-    String loading0 = "Loading ";
-    loading0+=path.c_str();
-    sendClients(loading0, true);
-  }
-  
-  String dataType = "text/plain";
-  if(path.endsWith("/")) path += "pegel";
- 
-  if(path.endsWith(".src")) path = path.substring(0, path.lastIndexOf("."));
-  else if(path.endsWith(".svg")) dataType = "image/svg+xml";
-
-  if(path.startsWith("/pegel")) {
-    path = path.substring(6);
-  }
-  if(debug) {
-    String loading = "Loading ";
-    loading+=path.c_str();
-    sendClients(loading, true);
-  }
-  
-  File dataFile = SPIFFS.open(path.c_str(), "r");
-  if (server.hasArg("download")){ 
-    //Serial.println("download");
-    dataType = "application/octet-stream"; 
-  }
-  if (server.streamFile(dataFile, dataType) != dataFile.size()) {
-    //Serial.println("Fehler!");
-  }
- 
-  dataFile.close();
-  return true;
-}
-
-void handleRoot(){
-  server.sendHeader("Location", "/pegel",true);   //Redirect to our html web page
-  server.send(302, "text/plane","");
-}
- 
-void handleWebRequests(){
-  if(loadFromSpiffs(server.uri())) return;
-  String message = "File Not Detected\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET)?"GET":"POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-  for (uint8_t i=0; i<server.args(); i++){
-    message += " NAME:"+server.argName(i) + "\n VALUE:" + server.arg(i) + "\n";
-  }
-  server.send(404, "text/plain", message);
-  Serial.println(message);
+void commandLine() {
+  if(Serial.available()) {
+      String cmd = Serial.readString();
+      Serial.print("Echo: ");
+      Serial.println(cmd);
+      String msg = "-";
+      if(cmd.startsWith("restart wifi")) {      
+        myWifi.reconnect();
+      } else if(cmd.startsWith("restart esp")) {      
+        msg = F("Restarting ESP...");
+        Serial.println(msg);
+        sendClients(msg);
+        ESP.restart();
+      } else if(cmd.startsWith("data ")) {      
+        msg = F("Setze Testdaten");     
+        //testData = cmd.substring(5); 
+        //msg+=testData;     
+      } else if(cmd.startsWith("debug on")) {        
+        debug = true;
+      } else if(cmd.startsWith("debug off")) {         
+        debug = false;
+      } else if(cmd.startsWith("actor start")) {        
+        fritz.startActor();
+      } else if(cmd.startsWith("actor stop")) {         
+        fritz.stopActor();
+      } else if(cmd.startsWith("print")) {         
+        //perry.print();
+      } else {
+        Serial.println(F("Available commands:"));
+        Serial.println(F(" - restart wifi  :: restarting Wifi connection"));
+        Serial.println(F(" - restart esp   :: restarting whole ESP32"));
+        Serial.println(F(" - debug  on|off :: enable/disable debug"));  
+        Serial.println(F(" - actor start|stop   :: Fritz Steckdose schalten"));     
+        Serial.println(F(" - data  TESTDATA :: Testdaten setzen"));
+        Serial.println(F(" - print :: Schreibe einige abgeleitete Werte auf den Bildschirm"));
+        return;
+      }
+      Serial.println(msg);
+      sendClients(msg);
+    }  
 }
