@@ -8,11 +8,9 @@ class MyWifi {
     private:
       String _ip;
       IPAddress _localIP;
-      const char* _ssid = "Perry";
-      const char* _password = "5785340536886787";
     public:
-      //const char* _ssid = "";
-      //const char* _password = "";
+      const char* _ssid;
+      const char* _password;
       void connect();
       String getIpAddress();
       IPAddress localIP();

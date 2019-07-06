@@ -3,26 +3,6 @@
 
 #include "global.h"
 
-void CFG::init(MyWifi& myWifi) {
-    if(!load()) {
-      Serial.println("Failed to load config");
-    } else  {
-      Serial.println("Config loaded");
-      /*myWifi._ssid = _ssid;
-      myWifi._password = _password;
-      Serial.print("Wifi SSID from config: ");
-      Serial.println(myWifi._ssid);     
-      Serial.print("Wifi Password from config: ");
-      Serial.println(myWifi._password);*/
-    }
-
-    /*if(!save()) {
-      Serial.println("Failed to save config");
-    } else  {
-      Serial.println("Config saved");
-    }*/
-}
-
 bool CFG::load() {
   Serial.println("Mounting FS...");
   if(!SPIFFS.begin()) {
@@ -45,14 +25,11 @@ bool CFG::load() {
   std::unique_ptr<char[]> buf(new char[size]);
 
   //We don't use String heire because ArduinoJson lib req the intput buffer
-  // to be mutble. if you don't use ArduonJson, you may as well use
-  // configFile.readString instead
+  // to be mutable. if you don't use ArduonJson, you may as well use configFile.readString instead
   configFile.readBytes(buf.get(), size);
   Serial.println(buf.get());
   
-
   StaticJsonDocument<1024> doc;
-  //JsonObject& json = jsonBuffer.parseObject(buf.get());
   auto error = deserializeJson(doc, buf.get());
 
   if(error) {
@@ -60,13 +37,13 @@ bool CFG::load() {
     return false;
   }
 
-  _ssid = doc["ssid"];
-  _password = doc["password"];
+  myWifi._ssid = doc["ssid"];
+  myWifi._password = doc["password"];
   
   Serial.print("SSID from config: ");
-  Serial.println(_ssid);
+  Serial.println(myWifi._ssid);
   Serial.print("Password from config: ");
-  Serial.println(_password);
+  Serial.println(myWifi._password);
 
   return true;
 }
@@ -79,15 +56,15 @@ bool CFG::save() {
 
   StaticJsonDocument<1024> doc;
   
-  //doc["socLimit"] = String(_socLimit);
-
+  doc["ssid"] = myWifi._ssid;
+  doc["password"] = myWifi._password;
+  
   File configFile = SPIFFS.open("/config.json", "w");
   if (!configFile) {
     Serial.println("Failed to open config file for writing");
     return false;
   }
 
-  //json.printTo(configFile);
   serializeJson(doc, configFile);
   return true;
 }

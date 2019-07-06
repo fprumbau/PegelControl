@@ -5,9 +5,13 @@ const char changelog[] PROGMEM = R"=====(
 <li>35: Umruestung auf ESP32 Wrover-B
 <li>36: Kommandozeile (ueber Serial) integriert, Return fuer Hilfe
 <li>37: Rumpf fuer Fritz Aktorensteuerung integriert
+<li>38: Serialisiert die ueber Serial2 empfangenen Daten in einen String und kopiert diesen dann in das globale jsonChar
+<li>39: Wifi-Daten werden wieder in der Konfig abgelegt
+<li>40: Testmodus mit "test on" fuettert Testdaten (data={jsondaten}) statt Daten aus Serial2 ein (testData sollte forher gesetzt werden)
+<li>41: Rumpfmethode Fritz::checkvalues() soll ueber die vom Arduino uebermittelten Daten pegel, pegelLimit, temperature, temperatureLimit das Wasserwerk schalten
 )=====";
 
-#define VERSION 37
+#define VERSION 41
 
 const char html[] PROGMEM = R"=====(
 

@@ -27,5 +27,18 @@ extern WiFiUDP udp;
 extern LOG logs; //Ringspeicher, Groesse in Log.h definiert
 extern const char* hostName;
 extern Fritz fritz;
+extern const char* fritz_user;
+extern const char* fritz_password;
+extern const char* fritz_ip;
+extern const char* fritz_ain;
+extern FritzApi api;
+extern bool test;
+extern String testData;
+
+//Werte entscheiden ueber Steckdose des Wasserwerks
+extern int pegelLimit;
+extern int temperatureLimit;
+extern int pegel;
+extern int temperature;
 
 #endif

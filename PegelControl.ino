@@ -59,15 +59,15 @@ void setup() {
 
   Serial.println("Starting...");
 
-  //Initialize File System
-  SPIFFS.begin();
-  
-  //config._ssid="";
-  //config._password="";
+  SPIFFS.begin();;
+
+  //Hier kann die Konfig erstmals initialisiert werden
+  myWifi._ssid="Perry";
+  myWifi._password="5785340536886787";
   //config.save();
   
   //lese SPIFFS config file system  
-  //config.init(myWifi);
+  //config.load();
 
   // etabliere Wifi Verbindung
   myWifi.connect();
@@ -125,6 +125,14 @@ void setup() {
   delay(1000);
   time_t now = time(nullptr);
   Serial.println(ctime(&now));
+
+  Serial.println("Initialisiere Fritz-Api");
+  try {
+    fritz.init();
+    Serial.println("Fritz connected");
+  } catch (int e) {
+    Serial.println("Could not connect to fritzbox: " + String(e));
+  }
 }
 
 /**
@@ -135,13 +143,26 @@ void loop() {
   if(!updater.stopForOTA) {
     commandLine();    //Pruefen, ob eine Kommandozeileneingabe vorhanden ist
     yield();
-    if(Serial2.available()) {
-      DynamicJsonDocument doc(512);
-      deserializeJson(doc, Serial2);
+
+    DynamicJsonDocument doc(512);
+    bool hasData = false;
+    if(test) {
+      hasData = true;     
+      deserializeJson(doc, testData);
+      delay(2000); //ERROR: Too many messages queued
+    } else {
+      hasData = Serial2.available();
+      if(hasData) {
+        deserializeJson(doc, Serial2);
+      }
+    }
+    
+    if(hasData) {   
+         
       if(debug) {
         serializeJsonPretty(doc, Serial);
       }
-      
+     
       String msg = doc["m"];
       if(msg.startsWith("*")) {
               
@@ -159,15 +180,26 @@ void loop() {
           sendClients(saveDbgMsg);
         }
       } 
+      //TODO warum???
       doc["level"]=level;
-      //da 2 SoftwareSerials benoetigt werden, kann NICHT ueber 2 gleichzeitig gelesen
-      //werden, darum wird der Debug-Wert aus dem ESP zum Client uebermittelt...
       doc["d"]=debug;
-      serializeJson(doc, jsonChar);
+
+      //Damit eine Abschaltung der Steckdose des Hauswasserwerks entschieden werden kann, werden hier die wichtigsten Werte vermerkt
+      pegel = doc["p"];
+      temperature = doc["t"];
+      pegelLimit = doc["PL"];
+      temperatureLimit = doc["TL"];      
+      
+      String json;
+      serializeJson(doc, json);
+      strcpy(jsonChar, json.c_str()); //Kopiert den Inhalt des json-Strings in das Array jsonChar und haengt ein \0 an
       if(debug) {
           Serial.println(String(jsonChar));
       }
       sendClients(String(jsonChar));
+
+      //Pruefen der Werte
+      fritz.checkValues();
     }        
   }
   
@@ -282,25 +314,31 @@ void commandLine() {
         sendClients(msg);
         ESP.restart();
       } else if(cmd.startsWith("data ")) {      
-        msg = F("Setze Testdaten");     
-        //testData = cmd.substring(5); 
-        //msg+=testData;     
+        msg = F("Setze Testdaten");    
+        //{"p":37,"PL":30,"ct":28760,"v":"0.65","t":19,"TL":40,"h":93,"rs":0,"d":true,"ht":2,"hp":3,"m":"","level":0} 
+        testData = cmd.substring(5); 
+        msg+=testData;     
       } else if(cmd.startsWith("debug on")) {        
         debug = true;
       } else if(cmd.startsWith("debug off")) {         
         debug = false;
+      } else if(cmd.startsWith("test on")) {        
+        test = true;
+      } else if(cmd.startsWith("test off")) {         
+        test = false;
       } else if(cmd.startsWith("actor start")) {        
         fritz.startActor();
       } else if(cmd.startsWith("actor stop")) {         
         fritz.stopActor();
       } else if(cmd.startsWith("print")) {         
-        //perry.print();
+        fritz.print();
       } else {
         Serial.println(F("Available commands:"));
         Serial.println(F(" - restart wifi  :: restarting Wifi connection"));
         Serial.println(F(" - restart esp   :: restarting whole ESP32"));
         Serial.println(F(" - debug  on|off :: enable/disable debug"));  
         Serial.println(F(" - actor start|stop   :: Fritz Steckdose schalten"));     
+        Serial.println(F(" - test  on|off :: Testmodus aktivieren/deaktivieren"));
         Serial.println(F(" - data  TESTDATA :: Testdaten setzen"));
         Serial.println(F(" - print :: Schreibe einige abgeleitete Werte auf den Bildschirm"));
         return;
