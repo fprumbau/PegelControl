@@ -61,7 +61,7 @@ void Fritz::print() {
   } catch (int e) {
     Serial.println("Got errorCode during execution " + String(e));
   }
-
+  yield();
   try {
     int energy = api.getSwitchEnergy(fritz_ain);
     Serial.printf("Total Energy is %i Wh\n", energy);
@@ -120,16 +120,32 @@ void Fritz::checkSetActor() {
   }
 
   if(!_errorState) {
+    unsigned long now = millis() + minRelaisActorInterval; //millis() startet mit Programmstart bei 0, hier werden die max. minRelaisActorInterval mit eingerechnet, 
+                                                           // damit nicht erst nach 5Min geschaltet werden kann
     //erst pruefen, ob der letzte Schaltversuch ausreichend lange zurueck liegt
-    bool switchAllowed = (millis()-lastActorAction) > minRelaisActorInterval;
+    bool switchAllowed = (now-lastActorAction) > minRelaisActorInterval;
+    if(dbg) {
+      Serial.print("now (millis()): ");
+      Serial.println(now);
+      Serial.print("lastActorAction: ");
+      Serial.println(lastActorAction);
+      Serial.print("minRelaisActorInterval: ");
+      Serial.println(minRelaisActorInterval);
+      Serial.print("switchAllowed: ");
+      Serial.println(switchAllowed);      
+      Serial.print("relayStatus: ");
+      Serial.println(relayStatus); 
+      Serial.print("_actorState: ");
+      Serial.println(_actorState);      
+    }
     if(switchAllowed) {
       if(relayStatus == 1) {
           if(_actorState && stopActor()) { //_actorState == true bedeutet, dass die Pumpensteckdose Strom hat
-            lastActorAction = millis();
+            lastActorAction = now;
           }
       } else {
           if(!_actorState && startActor()) { //_actorState == false bedeutet, dass die Pumpensteckdose KEINEN Strom hat
-            lastActorAction = millis();
+            lastActorAction = now;
           }
       }
     } else {
