@@ -3,6 +3,8 @@
 #include "MyWifi.h"
 #include "OTA.h"
 
+bool debug = false;
+int level = 0;
 
 CFG config;
 MyWifi myWifi;
@@ -26,3 +28,6 @@ int pegelLimit;
 int temperatureLimit;
 int pegel = -1;
 int temperature = -1;
+int relayStatus = 0; //Default, d.h. alles OK
+unsigned long lastActorAction;
+unsigned long minRelaisActorInterval=300000; //Hoechstens alle 5 Minuten

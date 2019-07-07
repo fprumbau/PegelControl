@@ -17,6 +17,8 @@
 #include "Log.h"
 #include "OTA.h"
 
+extern bool debug;
+extern int level;
 
 extern CFG config;
 extern MyWifi myWifi;
@@ -40,5 +42,8 @@ extern int pegelLimit;
 extern int temperatureLimit;
 extern int pegel;
 extern int temperature;
+extern int relayStatus;
+extern unsigned long lastActorAction;
+extern unsigned long minRelaisActorInterval;
 
 #endif

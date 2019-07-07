@@ -9,9 +9,11 @@ const char changelog[] PROGMEM = R"=====(
 <li>39: Wifi-Daten werden wieder in der Konfig abgelegt
 <li>40: Testmodus mit "test on" fuettert Testdaten (data={jsondaten}) statt Daten aus Serial2 ein (testData sollte forher gesetzt werden)
 <li>41: Rumpfmethode Fritz::checkvalues() soll ueber die vom Arduino uebermittelten Daten pegel, pegelLimit, temperature, temperatureLimit das Wasserwerk schalten
+<li>42: Schalten der Fritzmethode implementiert, Debuglevel schaltbar, Ausgabe ergänzt.
+<li>43: Debug und Debuglevel lassen sich wieder aus der Weboberfläche setzen.
 )=====";
 
-#define VERSION 41
+#define VERSION 43
 
 const char html[] PROGMEM = R"=====(
 

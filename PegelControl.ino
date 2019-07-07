@@ -8,8 +8,6 @@
  * 
  */
 
-#define IFSET(var,pos) (((var)>>(pos)) & 1)
-
 int timezone = 2;
 int dst = 0;
 
@@ -23,9 +21,6 @@ const char* host = "pegel";
 
 //client connected to send?
 volatile bool ready = false;
-
-bool debug = false;
-int level = 0;
 
 //D7(13)[RX] -> Arduino D11[TX]
 //D8(15)[TX] -> Arduino D10[RX]
@@ -59,7 +54,7 @@ void setup() {
 
   Serial.println("Starting...");
 
-  SPIFFS.begin();;
+  SPIFFS.begin();
 
   //Hier kann die Konfig erstmals initialisiert werden
   myWifi._ssid="Perry";
@@ -157,6 +152,8 @@ void loop() {
       }
     }
     
+    yield();
+    
     if(hasData) {   
          
       if(debug) {
@@ -176,7 +173,7 @@ void loop() {
         logs.print();
         
         String saveDbgMsg = logs.save();
-        if(IFSET(level,3)) {
+        if(level == 3) {
           sendClients(saveDbgMsg);
         }
       } 
@@ -185,6 +182,7 @@ void loop() {
       doc["d"]=debug;
 
       //Damit eine Abschaltung der Steckdose des Hauswasserwerks entschieden werden kann, werden hier die wichtigsten Werte vermerkt
+      relayStatus = doc["rs"]; //0|1, mit 0 == OK, 1 == Fehler
       pegel = doc["p"];
       temperature = doc["t"];
       pegelLimit = doc["PL"];
@@ -197,9 +195,10 @@ void loop() {
           Serial.println(String(jsonChar));
       }
       sendClients(String(jsonChar));
+      yield();
 
-      //Pruefen der Werte
-      fritz.checkValues();
+      //ggfls. Steckdose schalten
+      fritz.checkSetActor();
     }        
   }
   
@@ -220,36 +219,29 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
        
           client->text("@ Connected");
 
-/*
-            //Dem neuen Client alle vorhandenen logEvents aus logs senden!!!            
-            if(IFSET(level,3)) {      
-                sendClients("Loadmessage folgend: ", true);        
-                sendClients(loadMsg, true); //TEST!!!!
-            }     
-            for(int le = 0; le < logs.length(); le++) {               
-                String msg = logs.get(le);
-                if(msg == "") {
-                  continue;          
-                }
-                ws.sendTXT(num, msg);
-            }  
-*/          
+          //Dem neuen Client alle vorhandenen logEvents aus logs senden!!!            
+          if(level==3) {      
+              sendClients("Loadmessage folgend: ");        
+              sendClients(loadMsg); //TEST!!!!
+          }     
+          for(int le = 0; le < logs.length(); le++) {               
+              String msg = logs.get(le);
+              if(msg == "") {
+                continue;          
+              }
+              client->text(msg);
+          }           
                    
           break;
       }    
       case WS_EVT_DATA:
-/*
-        case WStype_TEXT:
-            Serial.printf("[Client %u] received: %s\n", num, payload);
-
-            if(payload[0] == '@') {         
-              if(payload[1] == 'd' || payload[1] == 'l') {                
-                 toggleDebug(payload);
-              }              
-            }
-*/
-
-      break;
+      
+        if(data[0] == '@') {         
+          if(data[1] == 'd' || data[1] == 'l') {                
+             toggleDebug(data);
+          }              
+        }
+        break;
     }
   
 }
@@ -282,20 +274,10 @@ void toggleDebug(unsigned char* payload) {
     String pl = String((char*)payload);
     pl = pl.substring(2);
     Serial.println(pl);
-    level = pl.toInt();
-
-    if(IFSET(level,1)) {
-      msg = "Debugging level 1 activated";
-    }
-    if(IFSET(level,2)) {
-      msg = "Debugging level 2 activated";
-    }
-    if(IFSET(level,3)) {
-      msg = "Debugging level 3 activated: Logs";
-    }
-    if(IFSET(level,4)) {
-      msg = "Debugging level 4 activated";      
-    }  
+    pl.trim();
+    level = atoi(pl.c_str());
+    msg = "Debuglevel activated: ";
+    msg+=level; 
     sendClients(msg);  
   }
 }
@@ -327,23 +309,37 @@ void commandLine() {
       } else if(cmd.startsWith("test off")) {         
         test = false;
       } else if(cmd.startsWith("actor start")) {        
-        fritz.startActor();
+        Serial.println(fritz.startActor());
       } else if(cmd.startsWith("actor stop")) {         
-        fritz.stopActor();
+        Serial.println(fritz.stopActor());
       } else if(cmd.startsWith("print")) {         
         fritz.print();
+        Serial.print("Relaystatus: ");
+        Serial.println(relayStatus);
+        Serial.print("lastActorAction: ");
+        Serial.println(lastActorAction);        
+        Serial.print("Level: ");
+        Serial.println(level);   
+      } else if(cmd.startsWith("level ")) {              
+        String lv = cmd.substring(6); 
+        level = atoi(lv.c_str());
+        msg = "Debuglevel: ";
+        msg+=level;
       } else {
         Serial.println(F("Available commands:"));
         Serial.println(F(" - restart wifi  :: restarting Wifi connection"));
         Serial.println(F(" - restart esp   :: restarting whole ESP32"));
         Serial.println(F(" - debug  on|off :: enable/disable debug"));  
+        Serial.println(F(" - level  LEVEL :: Debuglevel schalten, 0-9"));  
         Serial.println(F(" - actor start|stop   :: Fritz Steckdose schalten"));     
         Serial.println(F(" - test  on|off :: Testmodus aktivieren/deaktivieren"));
         Serial.println(F(" - data  TESTDATA :: Testdaten setzen"));
         Serial.println(F(" - print :: Schreibe einige abgeleitete Werte auf den Bildschirm"));
         return;
       }
-      Serial.println(msg);
-      sendClients(msg);
+      if(!msg.equals("-") && !msg.equals("")) {
+        Serial.println(msg);
+        sendClients(msg);
+      }
     }  
 }

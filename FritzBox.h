@@ -5,14 +5,15 @@
 
 class Fritz {
   private:   
-        //const char* fritz_user = "admin";
-        //const char* fritz_password = "shitonstupp";
+        bool _actorState = true; //Actor ist per Default ON, d.h. die Pumpe hat Strom
+        bool _errorState = false; //In der Fritz-API ist ein Fehler aufgetreten, die letzte Aktion war erfolglos
   public:
         void init();
         bool startActor();
         bool stopActor();
+        bool getActorState(); //true == on, false == off
         void print();
-        void checkValues();
+        void checkSetActor();
 };
 
 
