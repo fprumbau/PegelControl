@@ -9,11 +9,12 @@ const char changelog[] PROGMEM = R"=====(
 <li>39: Wifi-Daten werden wieder in der Konfig abgelegt
 <li>40: Testmodus mit "test on" fuettert Testdaten (data={jsondaten}) statt Daten aus Serial2 ein (testData sollte forher gesetzt werden)
 <li>41: Rumpfmethode Fritz::checkvalues() soll ueber die vom Arduino uebermittelten Daten pegel, pegelLimit, temperature, temperatureLimit das Wasserwerk schalten
-<li>42: Schalten der Fritzmethode implementiert, Debuglevel schaltbar, Ausgabe ergänzt.
-<li>43: Debug und Debuglevel lassen sich wieder aus der Weboberfläche setzen.
+<li>42: Schalten der Fritzmethode implementiert, Debuglevel schaltbar, Ausgabe ergaenzt.
+<li>43: Debug und Debuglevel lassen sich wieder aus der Weboberflaeche setzen.
+<li>44: Ein Fix in FritzBox.cpp laesst ein Schaltung des Aktors von Anfang an und nicht erst nach 300000ms zu.
 )=====";
 
-#define VERSION 43
+#define VERSION 44
 
 const char html[] PROGMEM = R"=====(
 
@@ -291,7 +292,7 @@ color:#545147;}h2{margin-top: 4px;margin-left:10px;}p{margin-top: 2px;margin-bot
 <script>var redirect = false;
 {redirect};
 if(redirect) {
-  setTimeout('document.location.href="/sbms";', 3000);
+  setTimeout('document.location.href="/update";', 3000);
 }
 </script>
 </head>
